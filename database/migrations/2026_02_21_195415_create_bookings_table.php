@@ -19,8 +19,11 @@ return new class extends Migration
             $table->foreignId('skate_id')->nullable()->constrained()->nullOnDelete();
             $table->integer('total_amount');
             $table->string('payment_id')->nullable();
+            $table->string('payment_url')->nullable();
+            $table->string('status')->default('pending');
             $table->boolean('is_paid')->default(false);
             $table->boolean('has_skates')->default(false);
+            $table->timestamp('paid_at')->nullable();
             $table->timestamps();
         });
     }

@@ -90,7 +90,7 @@
 
                     <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
                         <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
-                            <input type="checkbox" id="needSkates" style="width: 18px; height: 18px; cursor: pointer;">
+                            <input type="checkbox" name="needSkates" id="needSkates" value="1" style="width: 18px; height: 18px; cursor: pointer;">
                             <span style="color: #334155; font-weight: 500;">Мне нужны коньки напрокат (150 ₽/час)</span>
                         </label>
                     </div>
@@ -255,50 +255,115 @@
 
     @push('scripts')
         <script>
-            // Phone mask
-            document.querySelector('.phone-mask').addEventListener('input', function(e) {
-                let x = e.target.value.replace(/\D/g, '').match(/(\d{0,1})(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
-                e.target.value = !x[2] ? x[1] : '+7 (' + x[2] + ') ' + x[3] + (x[4] ? '-' + x[4] : '') + (x[5] ? '-' + x[5] : '');
-            });
+            document.addEventListener('DOMContentLoaded', function() {
+                // Phone mask
+                const phoneInput = document.querySelector('.phone-mask');
+                if (phoneInput) {
+                    phoneInput.addEventListener('input', function(e) {
+                        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,1})(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
+                        e.target.value = !x[2] ? x[1] : '+7 (' + x[2] + ') ' + x[3] + (x[4] ? '-' + x[4] : '') + (x[5] ? '-' + x[5] : '');
+                    });
+                }
 
-            // Toggle skates section
-            document.getElementById('needSkates').addEventListener('change', function(e) {
+                const hoursSelect = document.getElementById('hoursSelect');
+                const needSkatesCheckbox = document.getElementById('needSkates');
                 const skatesSection = document.getElementById('skatesSection');
                 const skatesPrice = document.getElementById('skatesPrice');
+                const skateSelect = document.getElementById('skateSelect');
+                const totalAmountSpan = document.getElementById('totalAmount');
+                const hoursCountSpan = document.getElementById('hoursCount');
+                const skatesAmountSpan = document.getElementById('skatesAmount');
 
-                if (e.target.checked) {
-                    skatesSection.style.display = 'block';
-                    skatesPrice.style.display = 'flex';
-                    document.getElementById('skateSelect').required = true;
-                } else {
-                    skatesSection.style.display = 'none';
-                    skatesPrice.style.display = 'none';
-                    document.getElementById('skateSelect').required = false;
-                    document.getElementById('skateSelect').value = '';
+                // Функция обновления суммы
+                function updateTotal() {
+                    const hours = parseInt(hoursSelect.value) || 1;
+                    const needSkates = needSkatesCheckbox.checked;
+
+                    console.log('Updating total:', {hours, needSkates});
+
+                    // Обновляем отображение часов
+                    if (hoursCountSpan) {
+                        hoursCountSpan.textContent = hours;
+                    }
+
+                    // Базовая сумма за билет
+                    let total = 300;
+
+                    // Если нужны коньки, добавляем стоимость
+                    if (needSkates) {
+                        total += 150 * hours;
+                        if (skatesAmountSpan) {
+                            skatesAmountSpan.innerHTML = `150 ₽ × ${hours}ч`;
+                        }
+                        console.log('With skates total:', total);
+                    } else {
+                        if (skatesAmountSpan) {
+                            skatesAmountSpan.innerHTML = `150 ₽ × ${hours}ч`;
+                        }
+                        console.log('Without skates total:', total);
+                    }
+
+                    // Обновляем отображение итога
+                    if (totalAmountSpan) {
+                        totalAmountSpan.textContent = total + ' ₽';
+                    }
+
+                    console.log('Final total:', total + ' ₽');
                 }
+
+                // Обработчик для чекбокса коньков
+                if (needSkatesCheckbox) {
+                    needSkatesCheckbox.addEventListener('change', function(e) {
+                        console.log('Checkbox changed, checked:', e.target.checked);
+
+                        if (e.target.checked) {
+                            // Показываем секцию выбора коньков
+                            if (skatesSection) {
+                                skatesSection.style.display = 'block';
+                            }
+                            if (skatesPrice) {
+                                skatesPrice.style.display = 'flex';
+                            }
+                            if (skateSelect) {
+                                skateSelect.required = true;
+                            }
+                        } else {
+                            // Скрываем секцию выбора коньков
+                            if (skatesSection) {
+                                skatesSection.style.display = 'none';
+                            }
+                            if (skatesPrice) {
+                                skatesPrice.style.display = 'none';
+                            }
+                            if (skateSelect) {
+                                skateSelect.required = false;
+                                skateSelect.value = '';
+                            }
+                        }
+
+                        // Обновляем сумму
+                        updateTotal();
+                    });
+                }
+
+                // Обработчик для выбора часов
+                if (hoursSelect) {
+                    hoursSelect.addEventListener('change', function(e) {
+                        console.log('Hours changed to:', e.target.value);
+                        updateTotal();
+                    });
+                }
+
+                // Инициализация при загрузке
                 updateTotal();
+
+                // Для отладки - добавим кнопку тестирования (можно удалить потом)
+                console.log('Script initialized', {
+                    hoursSelect: !!hoursSelect,
+                    needSkatesCheckbox: !!needSkatesCheckbox,
+                    totalAmountSpan: !!totalAmountSpan
+                });
             });
-
-            // Update total
-            function updateTotal() {
-                const hours = parseInt(document.getElementById('hoursSelect').value) || 1;
-                const needSkates = document.getElementById('needSkates').checked;
-
-                document.getElementById('hoursCount').textContent = hours;
-
-                let total = 300; // Билет
-                if (needSkates) {
-                    total += 150 * hours;
-                    document.getElementById('skatesAmount').innerHTML = `150 ₽ × ${hours}ч`;
-                }
-
-                document.getElementById('totalAmount').textContent = total + ' ₽';
-            }
-
-            document.getElementById('hoursSelect').addEventListener('change', updateTotal);
-
-            // Initialize
-            updateTotal();
         </script>
     @endpush
 

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [MainController::class, 'index'])->name('home');
 Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
+Route::get('/payment/pending/{booking}', [BookingController::class, 'pending'])->name('payment.pending');
 Route::get('/payment/success/{booking}', [BookingController::class, 'success'])->name('payment.success');
 Route::get('/payment/cancel/{booking}', [BookingController::class, 'cancel'])->name('payment.cancel');
 Route::get('/payment/check/{booking}', [BookingController::class, 'checkStatus'])->name('payment.check');

@@ -329,12 +329,24 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                     <span>Дата покупки:</span>
-                    <span>{{ $booking->created_at->format('d.m.Y H:i:s') }}</span>
+                    <span>
+            @if($booking->created_at instanceof \Carbon\Carbon)
+                            {{ $booking->created_at->format('d.m.Y H:i') }}
+                        @else
+                            {{ $booking->created_at }}
+                        @endif
+        </span>
                 </div>
                 @if($booking->paid_at)
                     <div style="display: flex; justify-content: space-between;">
                         <span>Время оплаты:</span>
-                        <span>{{ $booking->paid_at->format('d.m.Y H:i:s') }}</span>
+                        <span>
+                @if($booking->paid_at instanceof \Carbon\Carbon)
+                                {{ $booking->paid_at->format('d.m.Y H:i') }}
+                            @else
+                                {{ $booking->paid_at }}
+                            @endif
+            </span>
                     </div>
                 @endif
             </div>

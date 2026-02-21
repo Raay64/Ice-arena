@@ -319,13 +319,11 @@
             .then(data => {
                 console.log('Payment check:', data);
 
-                if (data.paid) {
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else if (data.paid) {
                     paymentCompleted = true;
-                    statusMessage.textContent = 'Платеж успешно выполнен!';
-                    window.location.reload();
-                } else if (data.status === 'succeeded') {
-                    paymentCompleted = true;
-                    window.location.reload();
+                    window.location.href = '{{ route("payment.success", $booking) }}';
                 } else if (data.status === 'canceled') {
                     window.location.href = '{{ route("payment.cancel", $booking) }}';
                 } else {

@@ -78,7 +78,7 @@ class BookingController extends Controller
                     ],
                     'confirmation' => [
                         'type' => 'redirect',
-                        'return_url' => route('payment.success', $booking->id),
+                        'return_url' => route('payment.pending', $booking->id),
                     ],
                     'capture' => true,
                     'description' => "Бронирование катка #{$booking->id}",
@@ -87,7 +87,6 @@ class BookingController extends Controller
                     ],
                 ];
 
-                // Добавляем чек если есть телефон
                 if (!empty($phoneForYooKassa) && strlen($phoneForYooKassa) >= 10) {
                     $items = [
                         [
@@ -159,47 +158,66 @@ class BookingController extends Controller
         }
     }
 
+    public function pending(Booking $booking)
+    {
+        Log::info('Payment pending page accessed', [
+            'booking_id' => $booking->id,
+            'status' => $booking->status
+        ]);
+
+        if ($booking->is_paid && $booking->status === 'paid') {
+            return redirect()->route('payment.success', $booking);
+        }
+
+        if ($booking->status === 'failed' || $booking->status === 'cancelled') {
+            return redirect()->route('payment.cancel', $booking);
+        }
+
+        return view('payment.pending', compact('booking'));
+    }
+
     public function success(Booking $booking)
     {
         Log::info('Payment success page accessed', [
             'booking_id' => $booking->id,
-            'current_status' => $booking->status,
+            'status' => $booking->status,
             'is_paid' => $booking->is_paid
         ]);
 
-        if ($booking->is_paid && $booking->status === 'paid') {
-            return view('payment.success', compact('booking'));
+        if (!$booking->is_paid || $booking->status !== 'paid') {
+            return redirect()->route('payment.pending', $booking);
         }
 
-        if ($booking->payment_id) {
-            try {
-                $client = $this->getYooKassaClient();
-                $payment = $client->getPaymentInfo($booking->payment_id);
+        return view('payment.success', compact('booking'));
+    }
 
-                $paymentStatus = $payment->getStatus();
-                Log::info('Payment status from YooKassa', [
-                    'booking_id' => $booking->id,
-                    'status' => $paymentStatus
-                ]);
+    public function cancel(Booking $booking, Request $request)
+    {
+        $timeout = $request->get('timeout', false);
 
-                if ($paymentStatus === PaymentStatus::SUCCEEDED) {
-                    return $this->markAsPaid($booking);
-                } elseif ($paymentStatus === PaymentStatus::CANCELED) {
-                    $booking->update(['status' => 'failed']);
-                    return redirect()->route('payment.cancel', $booking);
-                } else {
-                    return view('payment.pending', compact('booking'));
-                }
-            } catch (\Exception $e) {
-                Log::error('Error checking payment status', [
-                    'booking_id' => $booking->id,
-                    'error' => $e->getMessage()
-                ]);
-                return view('payment.pending', compact('booking'));
-            }
+        Log::info('Payment cancelled page accessed', [
+            'booking_id' => $booking->id,
+            'reason' => $timeout ? 'timeout' : 'user_cancelled',
+            'current_status' => $booking->status,
+            'current_is_paid' => $booking->is_paid
+        ]);
+
+        if ($booking->status !== 'failed' && $booking->status !== 'cancelled') {
+            $booking->update([
+                'status' => 'failed',
+                'is_paid' => false
+            ]);
+
+            Log::info('Booking status updated to failed', [
+                'booking_id' => $booking->id,
+                'new_status' => $booking->fresh()->status
+            ]);
         }
 
-        return redirect()->route('home')->with('error', 'Платеж не найден');
+        return view('payment.cancel', [
+            'booking' => $booking,
+            'timeout' => $timeout
+        ]);
     }
 
     private function markAsPaid(Booking $booking)
@@ -210,10 +228,6 @@ class BookingController extends Controller
             $skate = Skate::find($booking->skate_id);
             if ($skate && $skate->quantity > 0) {
                 $skate->decrement('quantity');
-                Log::info('Skates quantity decreased', [
-                    'skate_id' => $skate->id,
-                    'new_quantity' => $skate->quantity
-                ]);
             }
         }
 
@@ -223,41 +237,7 @@ class BookingController extends Controller
             'paid_at' => now(),
         ]);
 
-        Log::info('Booking marked as paid', [
-            'booking_id' => $booking->id,
-            'status' => $booking->status,
-            'is_paid' => $booking->is_paid
-        ]);
-
-        return view('payment.success', compact('booking'));
-    }
-
-    public function cancel(Booking $booking, Request $request)
-    {
-        $timeout = $request->get('timeout', false);
-
-        Log::info('Payment cancelled', [
-            'booking_id' => $booking->id,
-            'reason' => $timeout ? 'timeout' : 'user_cancelled'
-        ]);
-
-        $booking->update([
-            'status' => 'failed',
-            'is_paid' => false
-        ]);
-
-        if ($booking->payment_id && !$timeout) {
-            try {
-                $client = $this->getYooKassaClient();
-            } catch (\Exception $e) {
-                Log::error('Failed to cancel payment', ['error' => $e->getMessage()]);
-            }
-        }
-
-        return view('payment.cancel', [
-            'booking' => $booking,
-            'timeout' => $timeout
-        ]);
+        return true;
     }
 
     public function checkStatus(Booking $booking)
@@ -272,7 +252,6 @@ class BookingController extends Controller
 
             $client = $this->getYooKassaClient();
             $payment = $client->getPaymentInfo($booking->payment_id);
-
             $status = $payment->getStatus();
 
             $response = [
@@ -283,6 +262,13 @@ class BookingController extends Controller
             if ($status === PaymentStatus::SUCCEEDED && !$booking->is_paid) {
                 $this->markAsPaid($booking);
                 $response['updated'] = true;
+                $response['redirect'] = route('payment.success', $booking);
+            } elseif ($status === PaymentStatus::CANCELED && $booking->status !== 'failed') {
+                $booking->update([
+                    'status' => 'failed',
+                    'is_paid' => false
+                ]);
+                $response['redirect'] = route('payment.cancel', $booking);
             }
 
             return response()->json($response);
@@ -299,7 +285,7 @@ class BookingController extends Controller
     public function webhook(Request $request)
     {
         $data = $request->all();
-        Log::info('YooKassa webhook', $data);
+        Log::info('YooKassa webhook received', $data);
 
         if (isset($data['object']['id'])) {
             $paymentId = $data['object']['id'];
@@ -308,12 +294,21 @@ class BookingController extends Controller
             $booking = Booking::where('payment_id', $paymentId)->first();
 
             if ($booking) {
+                Log::info('Webhook: booking found', [
+                    'booking_id' => $booking->id,
+                    'old_status' => $booking->status,
+                    'new_status' => $status
+                ]);
+
                 if ($status === 'succeeded') {
                     $this->markAsPaid($booking);
                 } elseif ($status === 'canceled') {
                     $booking->update([
                         'status' => 'failed',
                         'is_paid' => false
+                    ]);
+                    Log::info('Booking cancelled via webhook', [
+                        'booking_id' => $booking->id
                     ]);
                 }
             }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Оплата успешна</title>
+    <title>Оплата успешна - билет #{{ $booking->id }}</title>
     <style>
         * {
             margin: 0;
@@ -69,25 +69,15 @@
             font-size: 18px;
         }
 
+        /* Билет для печати */
         .ticket {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            background: white;
+            border: 2px solid #2563eb;
             border-radius: 20px;
             padding: 32px;
-            color: white;
             margin-bottom: 32px;
             position: relative;
-            overflow: hidden;
-        }
-
-        .ticket::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
-            pointer-events: none;
+            text-align: left;
         }
 
         .ticket-header {
@@ -96,70 +86,75 @@
             align-items: center;
             margin-bottom: 24px;
             padding-bottom: 24px;
-            border-bottom: 2px dashed rgba(255,255,255,0.3);
+            border-bottom: 2px dashed #e2e8f0;
         }
 
-        .ticket-title {
+        .ticket-logo {
             font-size: 24px;
-            font-weight: 600;
+            font-weight: 700;
+            color: #2563eb;
         }
 
         .ticket-number {
-            background: rgba(255,255,255,0.2);
+            background: #f1f5f9;
             padding: 8px 16px;
             border-radius: 30px;
             font-size: 14px;
+            color: #475569;
+            font-weight: 500;
         }
 
         .ticket-info {
-            display: grid;
-            gap: 16px;
-            text-align: left;
-        }
-
-        .ticket-row {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
-        .ticket-label {
-            opacity: 0.9;
-            font-size: 14px;
+        .info-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f5f9;
         }
 
-        .ticket-value {
+        .info-label {
+            width: 120px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .info-value {
+            color: #0f172a;
             font-weight: 600;
-            font-size: 18px;
+            flex: 1;
+        }
+
+        .skates-details {
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 12px;
+            margin: 16px 0;
+        }
+
+        .skates-details p {
+            margin: 4px 0;
+            color: #334155;
         }
 
         .ticket-total {
-            margin-top: 24px;
-            padding-top: 24px;
-            border-top: 2px dashed rgba(255,255,255,0.3);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding-top: 24px;
+            border-top: 2px solid #e2e8f0;
             font-size: 20px;
             font-weight: 700;
-        }
-
-        .info-block {
-            background: #f8fafc;
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 32px;
-            text-align: left;
-            border: 1px solid #e2e8f0;
-        }
-
-        .info-title {
             color: #0f172a;
-            font-weight: 600;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        }
+
+        .total-price {
+            color: #2563eb;
+            font-size: 24px;
         }
 
         .qr-placeholder {
@@ -167,11 +162,19 @@
             height: 120px;
             background: #f1f5f9;
             border-radius: 16px;
-            margin: 0 auto 20px;
+            margin: 20px auto;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 40px;
+            border: 2px dashed #cbd5e1;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 24px;
         }
 
         .btn {
@@ -182,12 +185,13 @@
             text-decoration: none;
             transition: all 0.2s;
             font-size: 16px;
+            border: none;
+            cursor: pointer;
         }
 
         .btn-primary {
             background: #2563eb;
             color: white;
-            width: 100%;
         }
 
         .btn-primary:hover {
@@ -203,11 +207,69 @@
             background: #cbd5e1;
         }
 
-        .actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
+        .note {
             margin-top: 24px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        /* Стили для печати */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+                min-height: auto;
+            }
+
+            .container {
+                max-width: 100%;
+                padding: 0;
+            }
+
+            .card {
+                box-shadow: none;
+                padding: 20px;
+            }
+
+            .success-icon,
+            .actions,
+            .btn,
+            .note {
+                display: none;
+            }
+
+            .ticket {
+                border: 2px solid #000;
+                box-shadow: none;
+                page-break-inside: avoid;
+            }
+
+            .ticket-header {
+                border-bottom: 2px dashed #000;
+            }
+
+            .ticket-number {
+                background: #f0f0f0;
+                color: #000;
+                border: 1px solid #000;
+            }
+
+            .info-row {
+                border-bottom: 1px solid #ccc;
+            }
+
+            .skates-details {
+                background: #f9f9f9;
+            }
+
+            .ticket-total {
+                border-top: 2px solid #000;
+            }
+
+            h1, .description {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -217,95 +279,96 @@
         <div class="success-icon">✓</div>
 
         <h1>Оплата прошла успешно!</h1>
-        <p class="description">Спасибо за бронирование. Ваш билет уже ждет вас.</p>
+        <p class="description">Ваш билет на ледовую арену</p>
 
         <!-- Билет -->
         <div class="ticket">
             <div class="ticket-header">
-                <span class="ticket-title">ICE ARENA</span>
-                <span class="ticket-number">#{{ $booking->id }}</span>
+                <span class="ticket-logo">❄️ ICE ARENA</span>
+                <span class="ticket-number">Билет #{{ $booking->id }}</span>
             </div>
 
             <div class="ticket-info">
-                <div class="ticket-row">
-                    <span class="ticket-label">ФИО:</span>
-                    <span class="ticket-value">{{ $booking->fio }}</span>
+                <div class="info-row">
+                    <span class="info-label">ФИО:</span>
+                    <span class="info-value">{{ $booking->fio }}</span>
                 </div>
-                <div class="ticket-row">
-                    <span class="ticket-label">Телефон:</span>
-                    <span class="ticket-value">{{ $booking->phone }}</span>
+
+                <div class="info-row">
+                    <span class="info-label">Телефон:</span>
+                    <span class="info-value">{{ $booking->phone }}</span>
                 </div>
-                <div class="ticket-row">
-                    <span class="ticket-label">Время катания:</span>
-                    <span class="ticket-value">{{ $booking->hours }} ч</span>
+
+                <div class="info-row">
+                    <span class="info-label">Время катания:</span>
+                    <span class="info-value">{{ $booking->hours }} {{ $booking->hours == 1 ? 'час' : ($booking->hours < 5 ? 'часа' : 'часов') }}</span>
                 </div>
+
                 @if($booking->has_skates)
-                    <div class="ticket-row">
-                        <span class="ticket-label">Коньки:</span>
-                        <span class="ticket-value">{{ $booking->skate->model ?? 'Не указано' }} (р-р {{ $booking->skate->size ?? '?' }})</span>
+                    <div class="skates-details">
+                        <p><strong>⛸️ Аренда коньков:</strong></p>
+                        <p>Модель: {{ $booking->skate->model ?? 'Не указана' }}</p>
+                        <p>Размер: {{ $booking->skate->size ?? 'Не указан' }}</p>
+                        <p>Стоимость: 150 ₽ × {{ $booking->hours }} ч = {{ 150 * $booking->hours }} ₽</p>
+                    </div>
+                @else
+                    <div class="info-row">
+                        <span class="info-label">Коньки:</span>
+                        <span class="info-value">Свои коньки</span>
                     </div>
                 @endif
             </div>
 
             <div class="ticket-total">
-                <span>Итого оплачено:</span>
-                <span>{{ number_format($booking->total_amount, 0, '.', ' ') }} ₽</span>
+                <span>ИТОГО К ОПЛАТЕ:</span>
+                <span class="total-price">{{ number_format($booking->total_amount, 0, '.', ' ') }} ₽</span>
             </div>
-        </div>
 
-        <!-- Детали -->
-        <div class="info-block">
-            <div class="info-title">
-                <span>📋</span> Детали бронирования
-            </div>
-            <div style="display: grid; gap: 12px;">
-                <div style="display: flex; justify-content: space-between; color: #334155;">
-                    <span>Дата бронирования:</span>
-                    <span style="font-weight: 500;">{{ $booking->created_at->format('d.m.Y H:i') }}</span>
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed #e2e8f0; font-size: 13px; color: #64748b;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span>ID покупки (транзакции):</span>
+                    <span style="font-family: monospace; color: #334155; font-weight: 500;">{{ $booking->payment_id ?? 'Не указан' }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span>Дата покупки:</span>
+                    <span>{{ $booking->created_at->format('d.m.Y H:i:s') }}</span>
                 </div>
                 @if($booking->paid_at)
-                    <div style="display: flex; justify-content: space-between; color: #334155;">
-                        <span>Дата оплаты:</span>
-                        <span style="font-weight: 500;">{{ $booking->paid_at->format('d.m.Y H:i') }}</span>
-                    </div>
-                @endif
-                @if($booking->payment_id)
-                    <div style="display: flex; justify-content: space-between; color: #334155;">
-                        <span>ID платежа:</span>
-                        <span style="font-family: monospace; font-size: 14px;">{{ substr($booking->payment_id, 0, 16) }}...</span>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Время оплаты:</span>
+                        <span>{{ $booking->paid_at->format('d.m.Y H:i:s') }}</span>
                     </div>
                 @endif
             </div>
         </div>
 
-        <!-- QR код (заглушка) -->
-        <div class="qr-placeholder">
-            🎫
-        </div>
-        <p style="color: #64748b; font-size: 14px; margin-top: 8px; margin-bottom: 24px;">
+        <p style="color: #64748b; font-size: 14px; margin-bottom: 24px;">
+            Можете сделать скриншот
+        </p>
+        <p style="color: #64748b; font-size: 14px; margin-bottom: 24px;">
             Покажите этот билет на входе
         </p>
 
         <!-- Кнопки действий -->
         <div class="actions">
             <button onclick="window.print()" class="btn btn-secondary">
-                🖨️ Распечатать
+                🖨️ Распечатать билет
             </button>
             <a href="{{ route('home') }}" class="btn btn-primary">
                 На главную
             </a>
         </div>
 
-        <p style="margin-top: 24px; color: #94a3b8; font-size: 14px;">
+        <p class="note">
             Ждем вас на нашем катке! Не забудьте взять с собой хорошее настроение 😊
         </p>
     </div>
 </div>
 
 <script>
-    // Автоматическая печать через 1 секунду
+    // Автоматическое предложение печати (можно убрать если не нужно)
     setTimeout(() => {
-        if (confirm('Хотите распечатать билет?')) {
+        if (confirm('Распечатать билет?')) {
             window.print();
         }
     }, 1000);

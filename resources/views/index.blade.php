@@ -2,7 +2,7 @@
 
 @section('content')
     <!-- Hero Section -->
-    <section style="padding: 80px 0; text-align: center; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+    <section id="about" style="padding: 80px 0; text-align: center; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
         <div class="container">
             <h1 style="font-size: 48px; margin-bottom: 16px; animation: fadeInUp 0.8s ease; color: white; font-weight: 600; letter-spacing: -0.5px;">
                 Добро пожаловать на ледовую арену

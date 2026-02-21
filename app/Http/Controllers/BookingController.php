@@ -7,6 +7,7 @@ use App\Models\Skate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use YooKassa\Client;
+use YooKassa\Model\Payment\PaymentStatus;
 
 class BookingController extends Controller
 {
@@ -14,11 +15,6 @@ class BookingController extends Controller
     {
         $shopId = config('yookassa.shop_id') ?: env('YOOKASSA_SHOP_ID');
         $secretKey = config('yookassa.secret_key') ?: env('YOOKASSA_SECRET_KEY');
-
-        Log::info('YooKassa config', [
-            'shop_id' => $shopId ? 'set' : 'not set',
-            'secret_key' => $secretKey ? 'set' : 'not set'
-        ]);
 
         if (empty($shopId) || empty($secretKey)) {
             throw new \Exception('Настройки ЮKassa не сконфигурированы');
@@ -41,54 +37,36 @@ class BookingController extends Controller
                 'skate_id' => 'nullable|exists:skates,id'
             ]);
 
-            Log::info('Validation passed', $validated);
-
-            // Очищаем телефон от всех символов кроме цифр
+            // Очищаем телефон для ЮKassa
             $phone = preg_replace('/[^0-9]/', '', $validated['phone']);
-
-            // Приводим к формату, который принимает ЮKassa (только цифры)
-            // ЮKassa принимает телефон в формате: 79001234567 (11 цифр)
             if (strlen($phone) === 11) {
                 $phoneForYooKassa = $phone;
             } elseif (strlen($phone) === 10) {
-                // Если без 7, добавляем
                 $phoneForYooKassa = '7' . $phone;
             } else {
-                // Если какой-то другой формат, оставляем как есть, но без символов
                 $phoneForYooKassa = $phone;
             }
-
-            Log::info('Phone formatted', [
-                'original' => $validated['phone'],
-                'cleaned' => $phone,
-                'for_yookassa' => $phoneForYooKassa
-            ]);
 
             // Расчет стоимости
             $ticketPrice = 300;
             $skatePrice = 150;
             $totalAmount = $ticketPrice;
 
-            $hasSkates = false;
-            if ($request->filled('skate_id')) {
+            $hasSkates = $request->has('needSkates') && $request->filled('skate_id');
+            if ($hasSkates) {
                 $totalAmount += $skatePrice * $request->hours;
-                $hasSkates = true;
             }
 
-            Log::info('Price calculated', [
-                'total' => $totalAmount,
-                'has_skates' => $hasSkates
-            ]);
-
-            // Создание бронирования
+            // Создание бронирования со статусом pending
             $booking = Booking::create([
                 'fio' => $validated['fio'],
-                'phone' => $validated['phone'], // Сохраняем как ввел пользователь
+                'phone' => $validated['phone'],
                 'hours' => $validated['hours'],
-                'skate_id' => $request->skate_id,
+                'skate_id' => $hasSkates ? $request->skate_id : null,
                 'total_amount' => $totalAmount,
                 'has_skates' => $hasSkates,
-                'status' => 'pending'
+                'status' => 'pending',
+                'is_paid' => false
             ]);
 
             Log::info('Booking created', ['booking_id' => $booking->id]);
@@ -96,64 +74,7 @@ class BookingController extends Controller
             try {
                 $client = $this->getYooKassaClient();
 
-                // Формируем описание товаров для чека
-                $items = [
-                    [
-                        'description' => 'Входной билет на каток',
-                        'quantity' => '1.00',
-                        'amount' => [
-                            'value' => number_format($ticketPrice, 2, '.', ''),
-                            'currency' => 'RUB',
-                        ],
-                        'vat_code' => 1,
-                        'payment_mode' => 'full_prepayment',
-                        'payment_subject' => 'service',
-                    ]
-                ];
-
-                if ($hasSkates) {
-                    $items[] = [
-                        'description' => "Аренда коньков ({$request->hours} ч)",
-                        'quantity' => '1.00',
-                        'amount' => [
-                            'value' => number_format($skatePrice * $request->hours, 2, '.', ''),
-                            'currency' => 'RUB',
-                        ],
-                        'vat_code' => 1,
-                        'payment_mode' => 'full_prepayment',
-                        'payment_subject' => 'service',
-                    ];
-                }
-
-                // Подготавливаем данные клиента для чека
-                $customerData = [
-                    'full_name' => $validated['fio'],
-                ];
-
-                // Добавляем телефон только если он прошел валидацию
-                // ЮKassa требует либо phone, либо email
-                if (!empty($phoneForYooKassa) && strlen($phoneForYooKassa) >= 10) {
-                    $customerData['phone'] = $phoneForYooKassa;
-                } else {
-                    // Если телефон не прошел, используем заглушку email
-                    $customerData['email'] = 'customer@ice-arena.ru';
-                    Log::warning('Using fallback email for receipt', [
-                        'original_phone' => $validated['phone']
-                    ]);
-                }
-
-                // Формируем чек
-                $receiptData = [
-                    'customer' => $customerData,
-                    'items' => $items
-                ];
-
-                Log::info('Creating payment with receipt', [
-                    'customer' => $customerData,
-                    'amount' => number_format($totalAmount, 2, '.', ''),
-                ]);
-
-                // Создаем платеж с чеком
+                // Формируем данные для платежа
                 $paymentData = [
                     'amount' => [
                         'value' => number_format($totalAmount, 2, '.', ''),
@@ -170,9 +91,43 @@ class BookingController extends Controller
                     ],
                 ];
 
-                // Добавляем чек только если есть телефон или email
-                if (isset($customerData['phone']) || isset($customerData['email'])) {
-                    $paymentData['receipt'] = $receiptData;
+                // Добавляем чек если есть телефон
+                if (!empty($phoneForYooKassa) && strlen($phoneForYooKassa) >= 10) {
+                    $items = [
+                        [
+                            'description' => 'Входной билет на каток',
+                            'quantity' => '1.00',
+                            'amount' => [
+                                'value' => number_format($ticketPrice, 2, '.', ''),
+                                'currency' => 'RUB',
+                            ],
+                            'vat_code' => 1,
+                            'payment_mode' => 'full_prepayment',
+                            'payment_subject' => 'service',
+                        ]
+                    ];
+
+                    if ($hasSkates) {
+                        $items[] = [
+                            'description' => "Аренда коньков ({$request->hours} ч)",
+                            'quantity' => '1.00',
+                            'amount' => [
+                                'value' => number_format($skatePrice * $request->hours, 2, '.', ''),
+                                'currency' => 'RUB',
+                            ],
+                            'vat_code' => 1,
+                            'payment_mode' => 'full_prepayment',
+                            'payment_subject' => 'service',
+                        ];
+                    }
+
+                    $paymentData['receipt'] = [
+                        'customer' => [
+                            'full_name' => $validated['fio'],
+                            'phone' => $phoneForYooKassa,
+                        ],
+                        'items' => $items
+                    ];
                 }
 
                 $payment = $client->createPayment(
@@ -180,37 +135,32 @@ class BookingController extends Controller
                     uniqid('booking_', true)
                 );
 
-                Log::info('Payment created successfully', [
-                    'payment_id' => $payment->getId(),
-                    'confirmation_url' => $payment->getConfirmation()->getConfirmationUrl()
-                ]);
-
                 // Сохраняем данные платежа
                 $booking->update([
                     'payment_id' => $payment->getId(),
                     'payment_url' => $payment->getConfirmation()->getConfirmationUrl(),
                 ]);
 
+                Log::info('Payment created', [
+                    'booking_id' => $booking->id,
+                    'payment_id' => $payment->getId()
+                ]);
+
                 return redirect($payment->getConfirmation()->getConfirmationUrl());
 
             } catch (\Exception $e) {
-                Log::error('YooKassa payment creation failed', [
+                Log::error('YooKassa error', [
                     'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
+                    'booking_id' => $booking->id
                 ]);
 
                 $booking->update(['status' => 'failed']);
-
                 return back()->with('error', 'Ошибка при создании платежа: ' . $e->getMessage());
             }
 
         } catch (\Exception $e) {
-            Log::error('Booking store failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return back()->with('error', 'Произошла ошибка: ' . $e->getMessage());
+            Log::error('Validation error', ['error' => $e->getMessage()]);
+            return back()->with('error', 'Ошибка валидации: ' . $e->getMessage());
         }
     }
 
@@ -218,7 +168,78 @@ class BookingController extends Controller
     {
         Log::info('Payment success page accessed', [
             'booking_id' => $booking->id,
-            'status' => $booking->status
+            'current_status' => $booking->status,
+            'is_paid' => $booking->is_paid
+        ]);
+
+        // Если уже оплачен - показываем success
+        if ($booking->is_paid && $booking->status === 'paid') {
+            return view('payment.success', compact('booking'));
+        }
+
+        // Проверяем статус платежа через API
+        if ($booking->payment_id) {
+            try {
+                $client = $this->getYooKassaClient();
+                $payment = $client->getPaymentInfo($booking->payment_id);
+
+                $paymentStatus = $payment->getStatus();
+                Log::info('Payment status from YooKassa', [
+                    'booking_id' => $booking->id,
+                    'status' => $paymentStatus
+                ]);
+
+                if ($paymentStatus === PaymentStatus::SUCCEEDED) {
+                    // Платеж успешен - обновляем бронирование
+                    return $this->markAsPaid($booking);
+                } elseif ($paymentStatus === PaymentStatus::CANCELED) {
+                    // Платеж отменен
+                    $booking->update(['status' => 'failed']);
+                    return redirect()->route('payment.cancel', $booking);
+                } else {
+                    // Платеж в процессе
+                    return view('payment.pending', compact('booking'));
+                }
+            } catch (\Exception $e) {
+                Log::error('Error checking payment status', [
+                    'booking_id' => $booking->id,
+                    'error' => $e->getMessage()
+                ]);
+                return view('payment.pending', compact('booking'));
+            }
+        }
+
+        // Если нет payment_id - что-то пошло не так
+        return redirect()->route('home')->with('error', 'Платеж не найден');
+    }
+
+    private function markAsPaid(Booking $booking)
+    {
+        Log::info('Marking booking as paid', ['booking_id' => $booking->id]);
+
+        // Уменьшаем количество коньков если нужно
+        if ($booking->has_skates && $booking->skate_id) {
+            $skate = Skate::find($booking->skate_id);
+            if ($skate && $skate->quantity > 0) {
+                $skate->decrement('quantity');
+                Log::info('Skates quantity decreased', [
+                    'skate_id' => $skate->id,
+                    'new_quantity' => $skate->quantity
+                ]);
+            }
+        }
+
+        // Обновляем статус бронирования
+        $booking->update([
+            'status' => 'paid',
+            'is_paid' => true,
+            'paid_at' => now(),
+        ]);
+
+        Log::info('Booking marked as paid', [
+            'booking_id' => $booking->id,
+            'status' => $booking->status,
+            'is_paid' => $booking->is_paid
         ]);
 
         return view('payment.success', compact('booking'));
@@ -228,53 +249,74 @@ class BookingController extends Controller
     {
         Log::info('Payment cancelled', ['booking_id' => $booking->id]);
 
-        $booking->update(['status' => 'failed']);
+        $booking->update([
+            'status' => 'failed',
+            'is_paid' => false
+        ]);
+
         return view('payment.cancel', compact('booking'));
     }
 
     public function checkStatus(Booking $booking)
     {
-        Log::info('Checking payment status', ['booking_id' => $booking->id]);
-
         try {
             if (empty($booking->payment_id)) {
-                return response()->json(['status' => 'no_payment']);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No payment ID'
+                ]);
             }
 
             $client = $this->getYooKassaClient();
             $payment = $client->getPaymentInfo($booking->payment_id);
 
             $status = $payment->getStatus();
-            Log::info('Payment status from YooKassa', [
-                'booking_id' => $booking->id,
-                'status' => $status
-            ]);
 
-            if ($status === 'succeeded' && $booking->status !== 'paid') {
-                if ($booking->has_skates && $booking->skate_id) {
-                    $skate = Skate::find($booking->skate_id);
-                    if ($skate && $skate->quantity > 0) {
-                        $skate->decrement('quantity');
-                    }
-                }
+            $response = [
+                'status' => $status,
+                'paid' => $status === PaymentStatus::SUCCEEDED
+            ];
 
-                $booking->update([
-                    'status' => 'paid',
-                    'is_paid' => true,
-                    'paid_at' => now(),
-                ]);
+            // Если платеж успешен, но бронирование еще не отмечено как paid
+            if ($status === PaymentStatus::SUCCEEDED && !$booking->is_paid) {
+                $this->markAsPaid($booking);
+                $response['updated'] = true;
             }
 
-            return response()->json([
-                'status' => $status,
-                'paid' => $status === 'succeeded'
-            ]);
+            return response()->json($response);
 
         } catch (\Exception $e) {
-            Log::error('Status check failed', [
-                'error' => $e->getMessage()
-            ]);
-            return response()->json(['error' => $e->getMessage()], 500);
+            Log::error('Check status error', ['error' => $e->getMessage()]);
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
         }
+    }
+
+    public function webhook(Request $request)
+    {
+        $data = $request->all();
+        Log::info('YooKassa webhook', $data);
+
+        if (isset($data['object']['id'])) {
+            $paymentId = $data['object']['id'];
+            $status = $data['object']['status'] ?? null;
+
+            $booking = Booking::where('payment_id', $paymentId)->first();
+
+            if ($booking) {
+                if ($status === 'succeeded') {
+                    $this->markAsPaid($booking);
+                } elseif ($status === 'canceled') {
+                    $booking->update([
+                        'status' => 'failed',
+                        'is_paid' => false
+                    ]);
+                }
+            }
+        }
+
+        return response('OK', 200);
     }
 }

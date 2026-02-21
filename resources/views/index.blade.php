@@ -1,7 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-    <!-- Hero Section -->
     <section id="about" style="padding: 80px 0; text-align: center; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
         <div class="container">
             <h1 style="font-size: 48px; margin-bottom: 16px; animation: fadeInUp 0.8s ease; color: white; font-weight: 600; letter-spacing: -0.5px;">
@@ -16,7 +15,6 @@
         </div>
     </section>
 
-    <!-- Features -->
     <section style="padding: 60px 0; background: white;">
         <div class="container">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 32px;">
@@ -44,7 +42,6 @@
         </div>
     </section>
 
-    <!-- Booking Form -->
     <section id="booking" style="padding: 60px 0; background: #f8fafc;">
         <div class="container">
             <div style="text-align: center; margin-bottom: 48px;">
@@ -144,7 +141,6 @@
         </div>
     </section>
 
-    <!-- Prices -->
     <section id="prices" style="padding: 80px 0; background: white;">
         <div class="container">
             <div style="text-align: center; margin-bottom: 48px;">
@@ -193,7 +189,6 @@
         </div>
     </section>
 
-    <!-- Contact -->
     <section id="contact" style="padding: 80px 0; background: #f8fafc;">
         <div class="container">
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 48px;">
@@ -256,7 +251,6 @@
     @push('scripts')
         <script>
             document.addEventListener('DOMContentLoaded', function() {
-                // Phone mask
                 const phoneInput = document.querySelector('.phone-mask');
                 if (phoneInput) {
                     phoneInput.addEventListener('input', function(e) {
@@ -274,22 +268,18 @@
                 const hoursCountSpan = document.getElementById('hoursCount');
                 const skatesAmountSpan = document.getElementById('skatesAmount');
 
-                // Функция обновления суммы
                 function updateTotal() {
                     const hours = parseInt(hoursSelect.value) || 1;
                     const needSkates = needSkatesCheckbox.checked;
 
                     console.log('Updating total:', {hours, needSkates});
 
-                    // Обновляем отображение часов
                     if (hoursCountSpan) {
                         hoursCountSpan.textContent = hours;
                     }
 
-                    // Базовая сумма за билет
                     let total = 300;
 
-                    // Если нужны коньки, добавляем стоимость
                     if (needSkates) {
                         total += 150 * hours;
                         if (skatesAmountSpan) {
@@ -303,7 +293,6 @@
                         console.log('Without skates total:', total);
                     }
 
-                    // Обновляем отображение итога
                     if (totalAmountSpan) {
                         totalAmountSpan.textContent = total + ' ₽';
                     }
@@ -311,7 +300,6 @@
                     console.log('Final total:', total + ' ₽');
                 }
 
-                // Обработчик для чекбокса коньков
                 if (needSkatesCheckbox) {
                     needSkatesCheckbox.addEventListener('change', function(e) {
                         console.log('Checkbox changed, checked:', e.target.checked);
@@ -328,7 +316,6 @@
                                 skateSelect.required = true;
                             }
                         } else {
-                            // Скрываем секцию выбора коньков
                             if (skatesSection) {
                                 skatesSection.style.display = 'none';
                             }
@@ -341,12 +328,10 @@
                             }
                         }
 
-                        // Обновляем сумму
                         updateTotal();
                     });
                 }
 
-                // Обработчик для выбора часов
                 if (hoursSelect) {
                     hoursSelect.addEventListener('change', function(e) {
                         console.log('Hours changed to:', e.target.value);
@@ -354,10 +339,8 @@
                     });
                 }
 
-                // Инициализация при загрузке
                 updateTotal();
 
-                // Для отладки - добавим кнопку тестирования (можно удалить потом)
                 console.log('Script initialized', {
                     hoursSelect: !!hoursSelect,
                     needSkatesCheckbox: !!needSkatesCheckbox,

@@ -213,7 +213,6 @@
             font-size: 14px;
         }
 
-        /* Стили для печати */
         @media print {
             body {
                 background: white;
@@ -281,7 +280,6 @@
         <h1>Оплата прошла успешно!</h1>
         <p class="description">Ваш билет на ледовую арену</p>
 
-        <!-- Билет -->
         <div class="ticket">
             <div class="ticket-header">
                 <span class="ticket-logo">❄️ ICE ARENA</span>
@@ -349,7 +347,6 @@
             Покажите этот билет на входе
         </p>
 
-        <!-- Кнопки действий -->
         <div class="actions">
             <button onclick="window.print()" class="btn btn-secondary">
                 🖨️ Распечатать билет
@@ -366,7 +363,6 @@
 </div>
 
 <script>
-    // Автоматическое предложение печати (можно убрать если не нужно)
     setTimeout(() => {
         if (confirm('Распечатать билет?')) {
             window.print();

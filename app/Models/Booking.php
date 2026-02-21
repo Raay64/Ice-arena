@@ -13,8 +13,11 @@ class Booking extends Model
         'skate_id',
         'total_amount',
         'payment_id',
+        'payment_url',
+        'status',
         'is_paid',
-        'has_skates'
+        'has_skates',
+        'paid_at'
     ];
 
     protected $casts = [

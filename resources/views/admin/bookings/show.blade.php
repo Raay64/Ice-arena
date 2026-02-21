@@ -11,7 +11,6 @@
         </div>
 
         <div style="display: grid; gap: 24px;">
-            <!-- Header -->
             <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <h2 style="color: #0f172a; margin-bottom: 4px;">Бронирование #{{ $booking->id }}</h2>
@@ -30,7 +29,6 @@
                 </div>
             </div>
 
-            <!-- Client info -->
             <div class="card">
                 <h3 style="color: #0f172a; margin-bottom: 20px; font-size: 18px;">Информация о клиенте</h3>
                 <div style="display: grid; gap: 16px;">
@@ -45,7 +43,6 @@
                 </div>
             </div>
 
-            <!-- Order details -->
             <div class="card">
                 <h3 style="color: #0f172a; margin-bottom: 20px; font-size: 18px;">Детали заказа</h3>
                 <div style="display: grid; gap: 16px;">
@@ -67,7 +64,6 @@
                 </div>
             </div>
 
-            <!-- Payment details -->
             <div class="card">
                 <h3 style="color: #0f172a; margin-bottom: 20px; font-size: 18px;">Информация об оплате</h3>
                 <div style="display: grid; gap: 16px;">
@@ -97,7 +93,6 @@
                 </div>
             </div>
 
-            <!-- Actions -->
             <div style="display: flex; gap: 16px;">
                 <a href="{{ route('admin.bookings') }}" class="btn btn-secondary" style="flex: 1;">
                     Вернуться к списку

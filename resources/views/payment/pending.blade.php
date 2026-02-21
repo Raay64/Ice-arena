@@ -58,6 +58,35 @@
             line-height: 1.6;
         }
 
+        .timer {
+            font-size: 48px;
+            font-weight: 700;
+            color: #2563eb;
+            margin-bottom: 16px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .timer-warning {
+            color: #dc2626;
+            font-size: 36px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            margin-bottom: 32px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #2563eb;
+            transition: width 1s linear;
+            width: 100%;
+        }
+
         .info-block {
             background: #f8fafc;
             border-radius: 16px;
@@ -159,7 +188,15 @@
         <div class="icon">⏳</div>
 
         <h1>Ожидание оплаты</h1>
-        <p class="description">Мы ждем подтверждение платежа от банка. Это может занять несколько минут.</p>
+        <p class="description">Пожалуйста, завершите оплату в течение 1 минуты</p>
+
+        <!-- Таймер -->
+        <div class="timer" id="timer">01:00</div>
+
+        <!-- Прогресс-бар -->
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 100%;"></div>
+        </div>
 
         <div class="loader"></div>
 
@@ -188,7 +225,7 @@
             </div>
         </div>
 
-        <p class="status-message" id="statusMessage">Проверяем статус платежа...</p>
+        <p class="status-message" id="statusMessage">Ожидаем подтверждение платежа...</p>
 
         <div style="display: flex; gap: 12px;">
             <a href="{{ route('home') }}" class="btn btn-secondary" style="flex: 1;">
@@ -204,9 +241,75 @@
 </div>
 
 <script>
+    let timeLeft = 60;
+    const timerElement = document.getElementById('timer');
+    const progressFill = document.getElementById('progressFill');
+    const statusMessage = document.getElementById('statusMessage');
+    const errorContainer = document.getElementById('errorContainer');
+
+    let timerExpired = false;
+    let paymentCompleted = false;
+
+    function updateTimer() {
+        if (paymentCompleted) return;
+
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+
+        timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+        if (timeLeft <= 10) {
+            timerElement.classList.add('timer-warning');
+        }
+
+        const percentage = (timeLeft / 60) * 100;
+        progressFill.style.width = percentage + '%';
+
+        if (timeLeft <= 0) {
+            handleTimeout();
+        }
+    }
+
+    async function handleTimeout() {
+        if (timerExpired || paymentCompleted) return;
+
+        timerExpired = true;
+        timerElement.textContent = '00:00';
+        statusMessage.textContent = 'Время ожидания истекло...';
+        progressFill.style.width = '0%';
+
+        try {
+            const response = await fetch('{{ route("payment.check", $booking) }}');
+            const data = await response.json();
+
+            if (data.paid) {
+                paymentCompleted = true;
+                window.location.reload();
+                return;
+            }
+        } catch (error) {
+            console.error('Final check error:', error);
+        }
+
+        window.location.href = '{{ route("payment.cancel", $booking) }}?timeout=1';
+    }
+
+    const timerInterval = setInterval(() => {
+        if (paymentCompleted) {
+            clearInterval(timerInterval);
+            return;
+        }
+
+        if (timeLeft > 0) {
+            timeLeft--;
+            updateTimer();
+        } else {
+            clearInterval(timerInterval);
+        }
+    }, 1000);
+
     function checkPayment() {
-        const statusMessage = document.getElementById('statusMessage');
-        const errorContainer = document.getElementById('errorContainer');
+        if (paymentCompleted || timerExpired) return;
 
         statusMessage.textContent = 'Проверяем статус платежа...';
         errorContainer.style.display = 'none';
@@ -214,27 +317,49 @@
         fetch('{{ route("payment.check", $booking) }}')
             .then(response => response.json())
             .then(data => {
+                console.log('Payment check:', data);
+
                 if (data.paid) {
+                    paymentCompleted = true;
+                    statusMessage.textContent = 'Платеж успешно выполнен!';
                     window.location.reload();
                 } else if (data.status === 'succeeded') {
+                    paymentCompleted = true;
                     window.location.reload();
                 } else if (data.status === 'canceled') {
                     window.location.href = '{{ route("payment.cancel", $booking) }}';
                 } else {
-                    statusMessage.textContent = 'Платеж еще не поступил. Попробуйте проверить позже.';
+                    statusMessage.textContent = 'Платеж еще обрабатывается...';
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 errorContainer.style.display = 'block';
                 errorContainer.className = 'error-message';
-                errorContainer.textContent = 'Ошибка при проверке статуса. Пожалуйста, попробуйте позже.';
-                statusMessage.textContent = 'Не удалось проверить статус';
+                errorContainer.textContent = 'Ошибка при проверке статуса';
             });
     }
 
-    // Автоматическая проверка каждые 5 секунд
-    setInterval(checkPayment, 5000);
+    const checkInterval = setInterval(() => {
+        if (paymentCompleted || timerExpired) {
+            clearInterval(checkInterval);
+            return;
+        }
+        checkPayment();
+    }, 3000);
+
+    setTimeout(() => {
+        if (!paymentCompleted && !timerExpired) {
+            checkPayment();
+        }
+    }, 2000);
+
+    window.addEventListener('beforeunload', function() {
+        if (!paymentCompleted && !timerExpired) {
+        }
+    });
+
+    updateTimer();
 </script>
 </body>
 </html>

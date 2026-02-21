@@ -81,6 +81,16 @@
             border-bottom: none;
         }
 
+        .reason-badge {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 14px;
+            margin-bottom: 24px;
+            display: inline-block;
+        }
+
         .btn {
             display: inline-block;
             padding: 14px 32px;
@@ -132,21 +142,22 @@
         <div class="icon">✕</div>
 
         <h1>Оплата не завершена</h1>
-        <p class="description">Вы отменили платеж. Бронирование не было создано.</p>
+
+        @if(isset($timeout) && $timeout)
+            <div class="reason-badge">⏰ Истекло время ожидания</div>
+            <p class="description">Время на оплату вышло. Бронирование отменено автоматически.</p>
+        @else
+            <p class="description">Вы отменили платеж. Бронирование не было создано.</p>
+        @endif
 
         <div class="info-block">
             <div class="info-row">
-                <span>Что случилось?</span>
-                <span>❓</span>
+                <span class="info-label">Номер бронирования:</span>
+                <span class="info-value">#{{ $booking->id }}</span>
             </div>
-            <div style="color: #475569; font-size: 14px; line-height: 1.6;">
-                Возможные причины:
-                <ul style="margin-top: 8px; margin-left: 20px;">
-                    <li>Вы отменили платеж вручную</li>
-                    <li>Недостаточно средств на карте</li>
-                    <li>Технический сбой при оплате</li>
-                    <li>Банк отклонил операцию</li>
-                </ul>
+            <div class="info-row">
+                <span class="info-label">Статус:</span>
+                <span class="info-value" style="color: #dc2626;">Отменен</span>
             </div>
         </div>
 

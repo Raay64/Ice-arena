@@ -9,7 +9,6 @@
             <p style="color: #64748b;">История всех оплаченных бронирований</p>
         </div>
 
-        <!-- Stats -->
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 32px;">
             <div class="stat-card">
                 <div class="stat-value">{{ $paidBookings->total() }}</div>

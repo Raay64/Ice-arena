@@ -37,7 +37,6 @@ class BookingController extends Controller
                 'skate_id' => 'nullable|exists:skates,id'
             ]);
 
-            // Очищаем телефон для ЮKassa
             $phone = preg_replace('/[^0-9]/', '', $validated['phone']);
             if (strlen($phone) === 11) {
                 $phoneForYooKassa = $phone;
@@ -47,7 +46,6 @@ class BookingController extends Controller
                 $phoneForYooKassa = $phone;
             }
 
-            // Расчет стоимости
             $ticketPrice = 300;
             $skatePrice = 150;
             $totalAmount = $ticketPrice;
@@ -57,7 +55,6 @@ class BookingController extends Controller
                 $totalAmount += $skatePrice * $request->hours;
             }
 
-            // Создание бронирования со статусом pending
             $booking = Booking::create([
                 'fio' => $validated['fio'],
                 'phone' => $validated['phone'],
@@ -74,7 +71,6 @@ class BookingController extends Controller
             try {
                 $client = $this->getYooKassaClient();
 
-                // Формируем данные для платежа
                 $paymentData = [
                     'amount' => [
                         'value' => number_format($totalAmount, 2, '.', ''),
@@ -135,7 +131,6 @@ class BookingController extends Controller
                     uniqid('booking_', true)
                 );
 
-                // Сохраняем данные платежа
                 $booking->update([
                     'payment_id' => $payment->getId(),
                     'payment_url' => $payment->getConfirmation()->getConfirmationUrl(),
@@ -172,12 +167,10 @@ class BookingController extends Controller
             'is_paid' => $booking->is_paid
         ]);
 
-        // Если уже оплачен - показываем success
         if ($booking->is_paid && $booking->status === 'paid') {
             return view('payment.success', compact('booking'));
         }
 
-        // Проверяем статус платежа через API
         if ($booking->payment_id) {
             try {
                 $client = $this->getYooKassaClient();
@@ -190,14 +183,11 @@ class BookingController extends Controller
                 ]);
 
                 if ($paymentStatus === PaymentStatus::SUCCEEDED) {
-                    // Платеж успешен - обновляем бронирование
                     return $this->markAsPaid($booking);
                 } elseif ($paymentStatus === PaymentStatus::CANCELED) {
-                    // Платеж отменен
                     $booking->update(['status' => 'failed']);
                     return redirect()->route('payment.cancel', $booking);
                 } else {
-                    // Платеж в процессе
                     return view('payment.pending', compact('booking'));
                 }
             } catch (\Exception $e) {
@@ -209,7 +199,6 @@ class BookingController extends Controller
             }
         }
 
-        // Если нет payment_id - что-то пошло не так
         return redirect()->route('home')->with('error', 'Платеж не найден');
     }
 
@@ -217,7 +206,6 @@ class BookingController extends Controller
     {
         Log::info('Marking booking as paid', ['booking_id' => $booking->id]);
 
-        // Уменьшаем количество коньков если нужно
         if ($booking->has_skates && $booking->skate_id) {
             $skate = Skate::find($booking->skate_id);
             if ($skate && $skate->quantity > 0) {
@@ -229,7 +217,6 @@ class BookingController extends Controller
             }
         }
 
-        // Обновляем статус бронирования
         $booking->update([
             'status' => 'paid',
             'is_paid' => true,
@@ -245,16 +232,32 @@ class BookingController extends Controller
         return view('payment.success', compact('booking'));
     }
 
-    public function cancel(Booking $booking)
+    public function cancel(Booking $booking, Request $request)
     {
-        Log::info('Payment cancelled', ['booking_id' => $booking->id]);
+        $timeout = $request->get('timeout', false);
+
+        Log::info('Payment cancelled', [
+            'booking_id' => $booking->id,
+            'reason' => $timeout ? 'timeout' : 'user_cancelled'
+        ]);
 
         $booking->update([
             'status' => 'failed',
             'is_paid' => false
         ]);
 
-        return view('payment.cancel', compact('booking'));
+        if ($booking->payment_id && !$timeout) {
+            try {
+                $client = $this->getYooKassaClient();
+            } catch (\Exception $e) {
+                Log::error('Failed to cancel payment', ['error' => $e->getMessage()]);
+            }
+        }
+
+        return view('payment.cancel', [
+            'booking' => $booking,
+            'timeout' => $timeout
+        ]);
     }
 
     public function checkStatus(Booking $booking)
@@ -277,7 +280,6 @@ class BookingController extends Controller
                 'paid' => $status === PaymentStatus::SUCCEEDED
             ];
 
-            // Если платеж успешен, но бронирование еще не отмечено как paid
             if ($status === PaymentStatus::SUCCEEDED && !$booking->is_paid) {
                 $this->markAsPaid($booking);
                 $response['updated'] = true;

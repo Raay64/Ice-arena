@@ -15,7 +15,6 @@
             </div>
         @endif
 
-        <!-- Filters -->
         <div style="display: flex; gap: 16px; margin-bottom: 24px;">
             <a href="{{ route('admin.bookings') }}"
                style="padding: 8px 16px; border-radius: 8px; text-decoration: none; {{ !request('filter') ? 'background: #2563eb; color: white;' : 'background: white; color: #64748b;' }}">

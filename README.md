@@ -8,7 +8,7 @@
 2. composer update
 3. copy .env.example .env
 3. php artisan key:generate
-4. Потом заходим в .env и вводим данные от тестового магазины ЮКассы, по дефолту переменные в .env в самом конце:
+4. Потом заходим в .env и вводим данные от тестового магазины ЮКассы, по дефолту переменные в .env в самом конце:</br>
 YOOKASSA_SHOP_ID=</br>
 YOOKASSA_SECRET_KEY=</br>
 
